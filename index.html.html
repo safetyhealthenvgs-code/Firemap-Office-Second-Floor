@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>แผนผังถังดับเพลิง</title>
+  <style>
+    .map-container {
+      position: relative;
+      width: 876px;
+      height: 598px;
+      background-image: url('Lay out AMB2.jpg'); /* เปลี่ยนเป็นชื่อไฟล์ภาพจริงของคุณ */
+      background-size: cover;
+      border: 1px solid #ccc;
+    }
+
+    .marker {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background-color: red;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>แผนผังถังดับเพลิง</h2>
+  <div class="map-container" id="map"></div>
+
+  <script>
+    const SHEET_ID = "18YbWGcRIHhxv40v_7NTXQUNL3mV9jnNQrjfcUOvQEQs";
+    const SHEET_NAME = "Zone AMB2";
+    const jsonUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+    fetch(jsonUrl)
+      .then(res => res.text())
+      .then(text => {
+        // Google ใส่ wrapper ไว้ ต้องตัดออก
+        const json = JSON.parse(text.substr(47).slice(0, -2));
+        const rows = json.table.rows;
+
+        const coords = [];
+
+        rows.forEach((row, i) => {
+          const name = row.c[2]?.v || "";     // หมายเลขถัง (คอลัมน์ C)
+          const xyStr = row.c[11]?.v || "";   // พิกัด (คอลัมน์ L)
+
+          if (!xyStr.includes(",")) return;
+
+          const [xStr, yStr] = xyStr.split(",");
+          const x = parseFloat(xStr.trim());
+          const y = parseFloat(yStr.trim());
+          if (isNaN(x) || isNaN(y)) return;
+
+          coords.push({ x, y, name });
+        });
+
+        if (coords.length === 0) {
+          console.warn("ไม่มีข้อมูลพิกัดที่ถูกต้อง");
+          return;
+        }
+
+        // คำนวณขอบเขตเพื่อทำสัดส่วน
+        const minX = Math.min(...coords.map(c => c.x));
+        const maxX = Math.max(...coords.map(c => c.x));
+        const minY = Math.min(...coords.map(c => c.y));
+        const maxY = Math.max(...coords.map(c => c.y));
+
+        const map = document.getElementById("map");
+
+        coords.forEach(({ x, y, name }) => {
+          const leftPercent = ((x - minX) / (maxX - minX)) * 100;
+          const topPercent = ((y - minY) / (maxY - minY)) * 100;
+
+          const marker = document.createElement("div");
+          marker.className = "marker";
+          marker.style.left = leftPercent + "%";
+          marker.style.top = topPercent + "%";
+          marker.title = name;
+          map.appendChild(marker);
+        });
+      })
+      .catch(err => console.error("โหลดข้อมูลไม่สำเร็จ:", err));
+  </script>
+</body>
+</html>

@@ -2,13 +2,12 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>แผนผังถังดับเพลิง – ชั้นสอง</title>
+<title>แผนผังถังดับเพลิง</title>
 
 <style>
 body{font-family:sans-serif;padding:20px}
 h2{text-align:center}
 .filter{text-align:center;margin-bottom:10px}
-
 .map-container{
   position:relative;
   width:100%;
@@ -46,7 +45,7 @@ h2{text-align:center}
 
 <body>
 
-<h2>แผนผังถังดับเพลิง (Office ชั้นสอง)</h2>
+<h2>แผนผังถังดับเพลิง</h2>
 
 <div class="filter">
   เลือกเดือน:
@@ -56,14 +55,38 @@ h2{text-align:center}
 <div class="map-container" id="map"></div>
 
 <script>
-/* ===== CONFIG ===== */
 const SHEET_ID="18YbWGcRIHhxv40v_7NTXQUNL3mV9jnNQrjfcUOvQEQs";
 const SHEET_NAME="Zone Office Second Floor";
-const DATE_COL=1, INSPECTOR_COL=2, NUMBER_COL=3, XY_COL=13;
-/* ================== */
 
+const DATE_COL=1, INSPECTOR_COL=2, NUMBER_COL=3, XY_COL=13;
 const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
 let rows=[];
+
+/* ===== แสดงปีแบบปลอดภัย ===== */
+function displayYear(y){
+  y=parseInt(y,10);
+  return y<2400 ? y+543 : y;
+}
+
+/* ===== parseDate แบบไม่แตะปี ===== */
+function parseDate(cell){
+  if(!cell) return null;
+
+  if(typeof cell.v==="string"){
+    const m=cell.v.match(/Date\((\d+),(\d+),(\d+)\)/);
+    if(m){
+      return {day:+m[3],month:+m[2]+1,year:+m[1]};
+    }
+  }
+
+  if(typeof cell.f==="string"){
+    const p=cell.f.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if(p){
+      return {day:+p[1],month:+p[2],year:+p[3]};
+    }
+  }
+  return null;
+}
 
 /* ===== LOAD ===== */
 fetch(url)
@@ -74,14 +97,12 @@ fetch(url)
   buildDropdown();
 });
 
-/* ===== BUILD DROPDOWN (ใช้ Date object ล้วน) ===== */
+/* ===== DROPDOWN ===== */
 function buildDropdown(){
   const set=new Set();
-
   rows.forEach(r=>{
-    if(!r.c[DATE_COL]?.v) return;
-    const d=new Date(r.c[DATE_COL].v);
-    set.add(`${d.getMonth()+1}/${d.getFullYear()}`);
+    const d=parseDate(r.c[DATE_COL]);
+    if(d) set.add(`${d.month}/${d.year}`);
   });
 
   const sel=document.getElementById("monthFilter");
@@ -95,7 +116,7 @@ function buildDropdown(){
     const [m,y]=v.split("/").map(Number);
     const o=document.createElement("option");
     o.value=v;
-    o.textContent=`${m}/${y+543}`; // แสดง พ.ศ.
+    o.textContent=`${m}/${displayYear(y)}`;
     sel.appendChild(o);
   });
 
@@ -107,12 +128,9 @@ function buildDropdown(){
 function render(selected){
   const map=document.getElementById("map");
   map.innerHTML="";
-
   rows.forEach(r=>{
-    if(!r.c[DATE_COL]?.v) return;
-
-    const d=new Date(r.c[DATE_COL].v);
-    if(`${d.getMonth()+1}/${d.getFullYear()}`!==selected) return;
+    const d=parseDate(r.c[DATE_COL]);
+    if(!d||`${d.month}/${d.year}`!==selected) return;
 
     const xy=r.c[XY_COL]?.v;
     if(!xy||!xy.includes(",")) return;
@@ -123,7 +141,7 @@ function render(selected){
     m.style.left=`${x}%`;
     m.style.top=`${y}%`;
     m.setAttribute("data-info",
-`วันที่ตรวจ: ${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543}
+`วันที่ตรวจ: ${d.day}/${d.month}/${displayYear(d.year)}
 หมายเลขถัง: ${r.c[NUMBER_COL]?.v||""}
 ผู้ตรวจ: ${r.c[INSPECTOR_COL]?.v||""}`);
     map.appendChild(m);
@@ -133,3 +151,4 @@ function render(selected){
 
 </body>
 </html>
+
